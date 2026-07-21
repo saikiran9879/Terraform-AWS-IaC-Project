@@ -173,27 +173,37 @@ resource "aws_security_group" "web" {
 ########################################
 
 resource "aws_instance" "web" {
+  ami                         = var.ami_id
+  instance_type               = var.instance_type
+  subnet_id                   = aws_subnet.public1.id
+  vpc_security_group_ids       = [aws_security_group.web.id]
+  associate_public_ip_address  = true
 
-  ami = var.ami_id
+  user_data = <<-EOF
+#!/bin/bash
+dnf update -y
+dnf install -y nginx
+systemctl enable nginx
+systemctl start nginx
 
-  instance_type = var.instance_type
-
-  subnet_id = aws_subnet.public1.id
-
-  vpc_security_group_ids = [
-
-    aws_security_group.web.id
-
-  ]
-
-  associate_public_ip_address = true
+cat > /usr/share/nginx/html/index.html <<HTML
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Terraform AWS IaC Project</title>
+</head>
+<body>
+    <h1>Terraform AWS Infrastructure</h1>
+    <h2>Deployment Successful!</h2>
+    <p>Created by Saikiran Patel</p>
+</body>
+</html>
+HTML
+EOF
 
   tags = {
-
     Name = "Terraform-EC2"
-
   }
-
 }
 
 ########################################
@@ -202,36 +212,45 @@ resource "aws_instance" "web" {
 
 resource "aws_launch_template" "web" {
 
-  name_prefix = "terraform-"
-
-  image_id = var.ami_id
-
+  name_prefix   = "terraform-"
+  image_id      = var.ami_id
   instance_type = var.instance_type
 
+  user_data = base64encode(<<-EOF
+#!/bin/bash
+dnf update -y
+dnf install -y nginx
+systemctl enable nginx
+systemctl start nginx
+
+cat > /usr/share/nginx/html/index.html <<HTML
+<!DOCTYPE html>
+<html>
+<head>
+<title>Terraform AWS IaC</title>
+</head>
+<body>
+<h1>Terraform AWS Infrastructure</h1>
+<h2>Application Load Balancer Working!</h2>
+<p>Created by Saikiran Patel</p>
+</body>
+</html>
+HTML
+EOF
+)
+
   network_interfaces {
-
     associate_public_ip_address = true
-
-    security_groups = [
-
-      aws_security_group.web.id
-
-    ]
-
+    security_groups             = [aws_security_group.web.id]
   }
 
   tag_specifications {
-
     resource_type = "instance"
 
     tags = {
-
       Name = "Terraform-ASG"
-
     }
-
   }
-
 }
 
 ########################################
@@ -346,15 +365,4 @@ resource "aws_autoscaling_group" "asg" {
 
   }
 
-}
-module "vpc" {
-  source = "./modules/vpc"
-}
-
-module "ec2" {
-  source = "./modules/ec2"
-}
-
-module "alb" {
-  source = "./modules/alb"
 }
