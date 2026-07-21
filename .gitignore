@@ -5,3 +5,6 @@
 *.pem
 *.key
 .DS_Store
+.terraform/
+*.tfstate*
+terraform.tfvars
